@@ -61,19 +61,8 @@ chmod +x node_launcher.sh
 
 ```
 
-
-### Run Multiminer Script
-Clone the repository:
-
-```bash
-curl -O https://raw.githubusercontent.com/codedialect/nockchain/main/multi_miner.sh
-chmod +x multi_miner.sh
-./multi_miner.sh
-
-```
-
-- If this is your first run, it will build Nockchain in a detached `screen` session.
-- Rerun using this ``` ./node_launcher.sh ``` after screen gets closed to generate wallet keys and launch miner.
+- If this is your first run, it will build Nockchain in a detached `tmux` session.
+- Rerun using this ``` ./node_launcher.sh ``` after tmux gets closed to generate wallet keys and launch miner.
 
 - Enter a public key.
 - Optionally customize P2P and API ports (default 3005/3006).
