@@ -134,60 +134,68 @@ echo -e "${YELLOW}Choose how to run miner1:
 read -rp "Enter 1 or 2: " MINER_MODE
 
 mkdir -p miner1 && cd miner1
-sudo sysctl -w vm.overcommit_memory=1
-export PATH="$HOME/.cargo/bin:$PATH"
+NCK_DIR="$HOME/nockchain"
+NCK_BIN="$NCK_DIR/target/release/nockchain"
 
-if [[ "$MINER_MODE" == "1" ]]; then
-  screen -dmS miner1 bash -c "RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \\
-  MINIMAL_LOG_FORMAT=true \\
-  $NCK_BIN --mining-pubkey $MINING_KEY --mine"
-  echo -e "${GREEN}>> Miner1 started without peers in screen session 'miner1'.${RESET}"
-
-elif [[ "$MINER_MODE" == "2" ]]; then
-  screen -dmS miner1 bash -c "RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \\
-  MINIMAL_LOG_FORMAT=true \\
-  $NCK_BIN --mine \\
-  --mining-pubkey $MINING_KEY \\
-  --peer /ip4/95.216.102.60/udp/3006/quic-v1 \\
-  --peer /ip4/65.108.123.225/udp/3006/quic-v1 \\
-  --peer /ip4/65.109.156.108/udp/3006/quic-v1 \\
-  --peer /ip4/65.21.67.175/udp/3006/quic-v1 \\
-  --peer /ip4/65.109.156.172/udp/3006/quic-v1 \\
-  --peer /ip4/34.174.22.166/udp/3006/quic-v1 \\
-  --peer /ip4/34.95.155.151/udp/30000/quic-v1 \\
-  --peer /ip4/34.18.98.38/udp/30000/quic-v1 \\
-  --peer /ip4/96.230.252.205/udp/3006/quic-v1 \\
-  --peer /ip4/94.205.40.29/udp/3006/quic-v1 \\
-  --peer /ip4/159.112.204.186/udp/3006/quic-v1 \\
-  --peer /ip4/217.14.223.78/udp/3006/quic-v1"
-  echo -e "${GREEN}>> Miner1 started with peers in screen session 'miner1'.${RESET}"
-else
-  echo -e "${RED}Invalid choice. Exiting...${RESET}"
+# Check miner binary exists and is executable
+if [[ ! -x "$NCK_BIN" ]]; then
+  echo -e "${RED}Error: Miner binary not found or not executable at $NCK_BIN${RESET}"
   exit 1
 fi
 
-# Screen usage instructions
-echo -e "${CYAN}To view a miner screen: screen -r miner1, miner2, ...${RESET}"
-echo -e "${CYAN}To detach from screen: Ctrl + A then D${RESET}"
-echo -e "${CYAN}To list all screens: screen -ls${RESET}"
+sudo sysctl -w vm.overcommit_memory=1
+export PATH="$HOME/.cargo/bin:$PATH"
+
+# ========== Run miner1 with tmux ==========
+if [[ "$MINER_MODE" == "1" ]]; then
+  tmux new-session -d -s miner1 "bash -c '$NCK_BIN --mining-pubkey $MINING_KEY --mine; echo Miner exited with \$?; read -p \"Press enter to close...\"'"
+  echo -e "${GREEN}>> Miner1 started without peers in tmux session 'miner1'.${RESET}"
+
+elif [[ "$MINER_MODE" == "2" ]]; then
+  tmux new-session -d -s miner1 "bash -c '$NCK_BIN --mine --mining-pubkey $MINING_KEY \
+  --peer /ip4/95.216.102.60/udp/3006/quic-v1 \
+  --peer /ip4/65.108.123.225/udp/3006/quic-v1 \
+  --peer /ip4/65.109.156.108/udp/3006/quic-v1 \
+  --peer /ip4/65.21.67.175/udp/3006/quic-v1 \
+  --peer /ip4/65.109.156.172/udp/3006/quic-v1 \
+  --peer /ip4/34.174.22.166/udp/3006/quic-v1 \
+  --peer /ip4/34.95.155.151/udp/30000/quic-v1 \
+  --peer /ip4/34.18.98.38/udp/30000/quic-v1 \
+  --peer /ip4/96.230.252.205/udp/3006/quic-v1 \
+  --peer /ip4/94.205.40.29/udp/3006/quic-v1 \
+  --peer /ip4/159.112.204.186/udp/3006/quic-v1 \
+  --peer /ip4/217.14.223.78/udp/3006/quic-v1; echo Miner exited with \$?; read -p \"Press enter to close...\"'"
+  echo -e "${GREEN}>> Miner1 started with peers in tmux session 'miner1'.${RESET}"
+else
+  echo -e "${RED}Invalid MINER_MODE choice. Exiting...${RESET}"
+  exit 1
+fi
+
+# Tmux usage instructions
+echo -e "${CYAN}To attach to a tmux session: tmux attach -t miner1 (or minerX)${RESET}"
+echo -e "${CYAN}To detach from tmux: Ctrl + b then d${RESET}"
+echo -e "${CYAN}To list tmux sessions: tmux ls${RESET}"
 
 # Ask to start more miners
 echo -e "${YELLOW}Do you want to run multiple miners? Enter number (e.g. 3 for 3 miners total), or 1 to skip:${RESET}"
 read -rp "> " NUM_MINERS
 
+# ========== Multiple miners setup ==========
 if [[ "$NUM_MINERS" =~ ^[2-9][0-9]*$ ]]; then
-    for i in $(seq 2 "$NUM_MINERS"); do
-        MINER_DIR="$NCK_DIR/miner$i"
-        echo -e "${CYAN}>> Setting up miner$i...${RESET}"
-        mkdir -p "$MINER_DIR"
-        screen -dmS miner$i bash -c "cd $MINER_DIR && \\
-RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \\
-MINIMAL_LOG_FORMAT=true \\
-$NCK_BIN --mining-pubkey $MINING_KEY --mine"
-        echo -e "${GREEN}>> Miner $i started in screen session 'miner$i'.${RESET}"
-    done
+  for i in $(seq 2 "$NUM_MINERS"); do
+    MINER_DIR="$NCK_DIR/miner$i"
+    echo -e "${CYAN}>> Setting up miner$i...${RESET}"
+    mkdir -p "$MINER_DIR"
+
+    tmux new-session -d -s miner$i "bash -c 'cd $MINER_DIR && $NCK_BIN --mining-pubkey $MINING_KEY --mine; echo Miner $i exited with \$?; read -p \"Press enter to close...\"'"
+    echo -e "${GREEN}>> Miner $i started in tmux session 'miner$i'.${RESET}"
+  done
 else
-    echo -e "${CYAN}>> Skipping multiple miners setup.${RESET}"
+  echo -e "${CYAN}>> Skipping multiple miners setup.${RESET}"
 fi
 
 echo -e "${GREEN}All requested miners are now running.${RESET}"
+echo -e "${CYAN}To attach to a tmux session: tmux attach -t miner1 (or minerX)${RESET}"
+echo -e "${CYAN}To detach from tmux: Ctrl + b then d${RESET}"
+echo -e "${CYAN}To list tmux sessions: tmux ls${RESET}"
+
