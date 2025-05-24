@@ -127,11 +127,18 @@ sudo ufw allow 3005/udp
 sudo ufw allow 3006/udp
 sudo ufw --force enable || echo "Warning: Failed to enable UFW. Continuing script execution."
 
-# Ask user which mode to run miner1 in
-echo -e "${YELLOW}Choose how to run miner1:
-1) Without peers
-2) With recommended peers${RESET}"
-read -rp "Enter 1 or 2: " MINER_MODE
+# Prompt for peer mode
+echo -e "${YELLOW}How do you want to start miner1?${NC}"
+echo "1) Without peers"
+echo "2) With recommended peers"
+while true; do
+  read -rp "Enter 1 or 2: " MODE
+  MODE=$(echo "$MODE" | tr -d '\r\n' | xargs)
+  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then
+    break
+  fi
+  echo -e "${RED}Invalid input. Please enter 1 or 2.${NC}"
+done
 
 mkdir -p miner1 && cd miner1
 NCK_DIR="$HOME/nockchain"
@@ -147,28 +154,28 @@ sudo sysctl -w vm.overcommit_memory=1
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # ========== Run miner1 with tmux ==========
-if [[ "$MINER_MODE" == "1" ]]; then
-  tmux new-session -d -s miner1 "bash -c '$NCK_BIN --mining-pubkey $MINING_KEY --mine; echo Miner exited with \$?; read -p \"Press enter to close...\"'"
-  echo -e "${GREEN}>> Miner1 started without peers in tmux session 'miner1'.${RESET}"
-
-elif [[ "$MINER_MODE" == "2" ]]; then
-  tmux new-session -d -s miner1 "bash -c '$NCK_BIN --mine --mining-pubkey $MINING_KEY \
-  --peer /ip4/95.216.102.60/udp/3006/quic-v1 \
-  --peer /ip4/65.108.123.225/udp/3006/quic-v1 \
-  --peer /ip4/65.109.156.108/udp/3006/quic-v1 \
-  --peer /ip4/65.21.67.175/udp/3006/quic-v1 \
-  --peer /ip4/65.109.156.172/udp/3006/quic-v1 \
-  --peer /ip4/34.174.22.166/udp/3006/quic-v1 \
-  --peer /ip4/34.95.155.151/udp/30000/quic-v1 \
-  --peer /ip4/34.18.98.38/udp/30000/quic-v1 \
-  --peer /ip4/96.230.252.205/udp/3006/quic-v1 \
-  --peer /ip4/94.205.40.29/udp/3006/quic-v1 \
-  --peer /ip4/159.112.204.186/udp/3006/quic-v1 \
-  --peer /ip4/217.14.223.78/udp/3006/quic-v1; echo Miner exited with \$?; read -p \"Press enter to close...\"'"
-  echo -e "${GREEN}>> Miner1 started with peers in tmux session 'miner1'.${RESET}"
+if [[ "$MODE" == "1" ]]; then
+  tmux new-session -d -s miner1 "RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \
+MINIMAL_LOG_FORMAT=true \
+$NCK_BIN --mine \
+--mining-pubkey $MINING_KEY | tee miner1.log"
 else
-  echo -e "${RED}Invalid MINER_MODE choice. Exiting...${RESET}"
-  exit 1
+  tmux new-session -d -s miner1 "RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \
+MINIMAL_LOG_FORMAT=true \
+$NCK_BIN --mine \
+--mining-pubkey $MINING_KEY \
+--peer /ip4/95.216.102.60/udp/3006/quic-v1 \
+--peer /ip4/65.108.123.225/udp/3006/quic-v1 \
+--peer /ip4/65.109.156.108/udp/3006/quic-v1 \
+--peer /ip4/65.21.67.175/udp/3006/quic-v1  \
+--peer /ip4/65.109.156.172/udp/3006/quic-v1 \
+--peer /ip4/34.174.22.166/udp/3006/quic-v1 \
+--peer /ip4/34.95.155.151/udp/30000/quic-v1 \
+--peer /ip4/34.18.98.38/udp/30000/quic-v1 \
+--peer /ip4/96.230.252.205/udp/3006/quic-v1 \
+--peer /ip4/94.205.40.29/udp/3006/quic-v1 \
+--peer /ip4/159.112.204.186/udp/3006/quic-v1 \
+--peer /ip4/217.14.223.78/udp/3006/quic-v1 | tee miner1.log"
 fi
 
 # Tmux usage instructions
@@ -184,18 +191,54 @@ read -rp "> " NUM_MINERS
 if [[ "$NUM_MINERS" =~ ^[2-9][0-9]*$ ]]; then
   for i in $(seq 2 "$NUM_MINERS"); do
     MINER_DIR="$NCK_DIR/miner$i"
-    echo -e "${CYAN}>> Setting up miner$i...${RESET}"
     mkdir -p "$MINER_DIR"
 
-    tmux new-session -d -s miner$i "bash -c 'cd $MINER_DIR && $NCK_BIN --mining-pubkey $MINING_KEY --mine; echo Miner $i exited with \$?; read -p \"Press enter to close...\"'"
-    echo -e "${GREEN}>> Miner $i started in tmux session 'miner$i'.${RESET}"
+    echo -e "${YELLOW}Choose how to run miner$i:"
+    echo "1) Without peers"
+    echo "2) With recommended peers"
+    while true; do
+      read -rp "Enter 1 or 2 for miner$i: " MINER_MODE
+      MINER_MODE=$(echo "$MINER_MODE" | tr -d '\r\n' | xargs)
+      if [[ "$MINER_MODE" == "1" || "$MINER_MODE" == "2" ]]; then
+        break
+      fi
+      echo -e "${RED}Invalid input. Please enter 1 or 2.${NC}"
+    done
+
+    echo -e "${CYAN}>> Starting miner$i in tmux...${NC}"
+
+    if [[ "$MINER_MODE" == "1" ]]; then
+      tmux new-session -d -s miner$i "cd $MINER_DIR && \
+RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \
+MINIMAL_LOG_FORMAT=true \
+$NCK_BIN --mine \
+--mining-pubkey $MINING_KEY | tee miner$i.log"
+    else
+      tmux new-session -d -s miner$i "cd $MINER_DIR && \
+RUST_LOG=info,nockchain=info,nockchain_libp2p_io=info,libp2p=info,libp2p_quic=info \
+MINIMAL_LOG_FORMAT=true \
+$NCK_BIN --mine \
+--mining-pubkey $MINING_KEY \
+--peer /ip4/95.216.102.60/udp/3006/quic-v1 \
+--peer /ip4/65.108.123.225/udp/3006/quic-v1 \
+--peer /ip4/65.109.156.108/udp/3006/quic-v1 \
+--peer /ip4/65.21.67.175/udp/3006/quic-v1 \
+--peer /ip4/65.109.156.172/udp/3006/quic-v1 \
+--peer /ip4/34.174.22.166/udp/3006/quic-v1 \
+--peer /ip4/34.95.155.151/udp/30000/quic-v1 \
+--peer /ip4/34.18.98.38/udp/30000/quic-v1 \
+--peer /ip4/96.230.252.205/udp/3006/quic-v1 \
+--peer /ip4/94.205.40.29/udp/3006/quic-v1 \
+--peer /ip4/159.112.204.186/udp/3006/quic-v1 \
+--peer /ip4/217.14.223.78/udp/3006/quic-v1 | tee miner$i.log"
+    fi
+
+    echo -e "${GREEN}✅ Miner$i is running in tmux session 'miner$i'.${NC}"
   done
 else
-  echo -e "${CYAN}>> Skipping multiple miners setup.${RESET}"
+  echo -e "${CYAN}>> Skipping additional miners.${NC}"
 fi
-
 echo -e "${GREEN}All requested miners are now running.${RESET}"
 echo -e "${CYAN}To attach to a tmux session: tmux attach -t miner1 (or minerX)${RESET}"
 echo -e "${CYAN}To detach from tmux: Ctrl + b then d${RESET}"
 echo -e "${CYAN}To list tmux sessions: tmux ls${RESET}"
-
