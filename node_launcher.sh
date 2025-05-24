@@ -125,7 +125,7 @@ sudo ufw allow 3005/tcp
 sudo ufw allow 3006/tcp
 sudo ufw allow 3005/udp
 sudo ufw allow 3006/udp
-sudo ufw --force enable
+sudo ufw --force enable || echo "Warning: Failed to enable UFW. Continuing script execution."
 
 # Ask user which mode to run miner1 in
 echo -e "${YELLOW}Choose how to run miner1:
