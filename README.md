@@ -102,26 +102,26 @@ sudo rm -rf nock-chain .nockapp .nockbuild_done nockchain
 ```
 Also delete all the relative screen with below commands
 
-### Screen Commands
+### Tmux Commands
 
 > To avoid overlapping screens, minimize or close your current screen before switching.
 
 - Reattach leader logs screen:
 
 ```bash
-screen -r miner
+tmux attach -t miner
 ```
 
 - Minimize (detach) current screen session:
 
 ```
-CTRL + A, then D
+CTRL + B, then D
 ```
 
 - List all screen sessions:
 
 ```bash
-screen -ls
+tmux ls
 ```
 
 - Stop node inside a screen (graceful shutdown):
@@ -133,7 +133,7 @@ CTRL + C
 - Kill and remove a screen session (replace `NAME` with session name):
 
 ```bash
-screen -XS NAME quit
+tmux kill-session -t miner
 ```
 
 ---
