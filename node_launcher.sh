@@ -51,7 +51,7 @@ if [ ! -f "$BINARY_PATH" ]; then
 
     echo -e "${CYAN}>> Installing system dependencies...${RESET}"
     sudo apt-get update && sudo apt-get upgrade -y
-    sudo apt install -y curl iptables build-essential screen git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libclang-dev llvm-dev
+    sudo apt install -y curl iptables build-essential ufw screen git wget lz4 jq make gcc nano automake autoconf tmux htop nvme-cli libgbm1 pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libclang-dev llvm-dev
 
     if ! command -v cargo &> /dev/null; then
         echo -e "${CYAN}>> Installing Rust...${RESET}"
